@@ -7,11 +7,11 @@ name = "pypi"
 tk = "*"
 np = "*"
 pillow = "*"
-pydub = "*"
 numpy = "*"
 userpaths = "*"
 pyinstaller = "*"
 simpleaudio = "*"
+playsound = "==1.2.2"
 
 [dev-packages]
 

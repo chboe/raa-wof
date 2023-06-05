@@ -6,8 +6,7 @@ import random
 from PIL import ImageTk, Image
 import userpaths
 import math
-from pydub import AudioSegment
-from pydub.playback import play
+import playsound
 
 
 def resource_path(relative_path):
@@ -63,6 +62,10 @@ class GameWindow():
     def set_phrase(self, phrase):
         self.has_celebrated = False
         self.phrase = phrase
+        self.guessed_characters = []
+        self.phrase_characters = list(set([*self.phrase]))
+        if ' ' in self.phrase_characters:
+            self.phrase_characters.remove(' ')
         self.fill_closed_boxes()
         self.add_phrase()
 
@@ -125,11 +128,14 @@ class GameWindow():
 
     def keyup(self, e):
         pred_char = e.char.upper()
+        if pred_char in LEGAL_CHARACTERS and (pred_char not in self.phrase_characters or pred_char in self.guessed_characters):
+            playsound.playsound(resource_path("lost-turn.mp3"), False)
+
         if pred_char in LEGAL_CHARACTERS and pred_char in self.phrase and pred_char not in self.guessed_characters:
             self.add_char_box(pred_char)
             self.add_char_to_guessed(pred_char)
-            music = AudioSegment.from_mp3(resource_path("ding.mp3"))
-            play(music)
+            if len(self.phrase_characters) != len(self.guessed_characters):
+                playsound.playsound(resource_path("ding.mp3"), False)
 
         if e.keysym == 'Return':
             for char in [*self.phrase]:
@@ -144,9 +150,7 @@ class GameWindow():
 
     def victory_mode(self):
         if not self.has_celebrated:
-            #self.canvas.create_image(500, 500, image=CONFETTI_CANNON, anchor='nw')
-            music = AudioSegment.from_mp3(resource_path("victory.mp3"))
-            play(music)
+            playsound.playsound(resource_path("victory.mp3"), False)
         self.has_celebrated = True
 
 
@@ -316,6 +320,33 @@ class PhraseBody(tk.Frame):
         self.grid_columnconfigure(1, weight=3)
         self.grid_columnconfigure(2, weight=3)
 
+class SoundBoard(tk.Frame):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.intro_btn = tk.Button(self, text="Intro", height=1, width=9,
+                                          command=self.play_intro)
+        self.failure_btn = tk.Button(self, text="Fallit", height=1, width=9,
+                                          command=self.play_failure)
+        self.lost_turn_btn = tk.Button(self, text="Tabt tur", height=1, width=9,
+                                          command=self.play_lost_turn)
+
+        self.intro_btn.grid(column=0, row=0)
+        self.failure_btn.grid(column=1, row=0)
+        self.lost_turn_btn.grid(column=2, row=0)
+        self.grid_columnconfigure(weight=1, index=0)
+        self.grid_columnconfigure(weight=1, index=1)
+        self.grid_columnconfigure(weight=1, index=2)
+
+
+    def play_intro(self):
+        playsound.playsound(resource_path("intro.mp3"), False)
+
+    def play_failure(self):
+        playsound.playsound(resource_path("failure.mp3"), False)
+
+    def play_lost_turn(self):
+        playsound.playsound(resource_path("wrong.mp3"), False)
 
 class RootWindow:
     def __init__(self):
@@ -326,6 +357,8 @@ class RootWindow:
         self.frame.focus_set()
         self.frame.bind("<KeyPress>", self.keydown)
         self.frame.bind("<KeyRelease>", self.keyup)
+
+        self.sound_board = SoundBoard(self.frame)
 
         self.phrase, self.category = random.choice(PHRASES)
         self.phrase_var = tk.StringVar()
@@ -340,6 +373,7 @@ class RootWindow:
         self.game_window_btn = tk.Button(self.root,
                              text="Åben spilvindue",
                              command=self.generate_new_phrase, height=1, width=30)
+        self.sound_board.pack()
         self.game_window_btn.pack()
         self.phrase_table_btn.pack()
         self.solved_phrase_btn.pack()
@@ -393,7 +427,4 @@ OPEN_BOX = ImageTk.PhotoImage(obi_resized)
 
 LEFT_OVER_TOP_BOT_MARGIN = 1015 - (int(math.floor(1015 / CLOSED_BOX.height())) * CLOSED_BOX.height())
 
-cc = Image.open(resource_path("confetti-cannon.gif"))
-cc_resized = cc.resize((1920, int(math.floor((obi.height / obi.width) * 1920))))
-CONFETTI_CANNON = ImageTk.PhotoImage(cc_resized)
 root.mainloop()

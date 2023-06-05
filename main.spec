@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('closed-box.jpg', '.'), ('open-box.jpg', '.'), ('victory-sound.mp3', '.'), ('confetti-cannon.gif', '.')],
+    datas=[('closed-box.jpg', '.'), ('open-box.jpg', '.'), ('victory.mp3', '.'), ('ding.mp3', '.'), ('failure.mp3', '.'), ('intro.mp3', '.'), ('lost-turn.mp3', '.'), ('wrong.mp3', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

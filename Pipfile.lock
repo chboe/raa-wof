@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5d36f7e4cfd11dbbd24bee107378f2202155907c31714a5dc9c53afc6976169a"
+            "sha256": "8118ce15d6cf25ce60bd90e5d2358d23c922a5b0b0ff433ba604a1d6e2f42ac1"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -144,13 +144,12 @@
             "index": "pypi",
             "version": "==9.5.0"
         },
-        "pydub": {
+        "playsound": {
             "hashes": [
-                "sha256:65617e33033874b59d87db603aa1ed450633288aefead953b30bded59cb599a6",
-                "sha256:980a33ce9949cab2a569606b65674d748ecbca4f0796887fd6f46173a7b0d30f"
+                "sha256:1e83750a5325cbccee03d6e751ba3e78c037ac95b95a3ba1f38d0c5aca9e1a34"
             ],
             "index": "pypi",
-            "version": "==0.25.1"
+            "version": "==1.2.2"
         },
         "pyinstaller": {
             "hashes": [
