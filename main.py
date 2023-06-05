@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 import sys, os
 import numpy as np
@@ -5,6 +6,8 @@ import random
 from PIL import ImageTk, Image
 import userpaths
 import math
+from pydub import AudioSegment
+from pydub.playback import play
 
 
 def resource_path(relative_path):
@@ -35,10 +38,15 @@ class GameWindow():
     def __init__(self, master, phrase, show_phrase, hide_phrase):
         self.displayed = False
         self.phrase = phrase
+        self.guessed_characters = []
+        self.phrase_characters = list(set([*self.phrase]))
+        if ' ' in self.phrase_characters:
+            self.phrase_characters.remove(' ')
         self.master = master
         self.window = None
         self.show_phrase = show_phrase
         self.hide_phrase = hide_phrase
+        self.has_celebrated = False
 
     def display(self):
         self.window = tk.Toplevel(self.master)
@@ -53,6 +61,7 @@ class GameWindow():
         self.canvas.pack(fill='both', expand=True)
 
     def set_phrase(self, phrase):
+        self.has_celebrated = False
         self.phrase = phrase
         self.fill_closed_boxes()
         self.add_phrase()
@@ -108,17 +117,37 @@ class GameWindow():
         if e.keysym == 'space':
             self.show_phrase()
 
+    def add_char_to_guessed(self, char):
+        self.guessed_characters.append(char)
+        self.guessed_characters = list(set(self.guessed_characters))
+        if ' ' in self.guessed_characters:
+            self.guessed_characters.remove(' ')
+
     def keyup(self, e):
         pred_char = e.char.upper()
-        if pred_char in LEGAL_CHARACTERS and pred_char in self.phrase:
+        if pred_char in LEGAL_CHARACTERS and pred_char in self.phrase and pred_char not in self.guessed_characters:
             self.add_char_box(pred_char)
+            self.add_char_to_guessed(pred_char)
+            music = AudioSegment.from_mp3(resource_path("ding.mp3"))
+            play(music)
 
         if e.keysym == 'Return':
             for char in [*self.phrase]:
                 self.add_char_box(char)
+                self.add_char_to_guessed(char)
 
         if e.keysym == 'space':
             self.hide_phrase()
+
+        if len(self.phrase_characters) == len(self.guessed_characters):
+            self.victory_mode()
+
+    def victory_mode(self):
+        if not self.has_celebrated:
+            #self.canvas.create_image(500, 500, image=CONFETTI_CANNON, anchor='nw')
+            music = AudioSegment.from_mp3(resource_path("victory.mp3"))
+            play(music)
+        self.has_celebrated = True
 
 
 class VerticalScrolledFrame(tk.Frame):
@@ -171,25 +200,29 @@ class VerticalScrolledFrame(tk.Frame):
 class PhraseHeader(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        names = ["Sætning", ""]
+        names = ["Sætning","Kategori", ""]
         frame = tk.Frame(self)
         frame.pack(side="top", fill="both", expand=True)
         for i, title in enumerate(names):
             l = tk.Label(frame, text=title, font='Helvetica 16 bold')
             l.grid(row=0, column=i)
-            frame.grid_columnconfigure(i, weight=1)
+            frame.grid_columnconfigure(i, weight=3)
 
 
 class PhraseFooter(tk.Frame):
-    def __init__(self, parent, body):
+    def __init__(self, parent, body, close):
         tk.Frame.__init__(self, parent)
         self.body = body
+        self.close = close
         self.save_db_btn = tk.Button(self, text="Gem", font='Helvetica 16 bold', command=self.save)
         self.save_db_btn.pack()
 
     def save(self):
-        self.body.refresh_df()
+        if any(list(map(lambda x: len(x[0].get()) == 0 or len(x[1].get()) == 0, self.body.entries))):
+            return
+        self.body.refresh_phrases()
         save_db()
+        self.close()
 
 
 class PhraseUI(tk.Frame):
@@ -198,17 +231,19 @@ class PhraseUI(tk.Frame):
         self.parent = parent
         self.window = None
 
-
     def display(self):
         self.window = tk.Toplevel(self.parent)
         self.window.title("Raa Lykkehjulet")
         self.window.geometry("900x500")
         self.header = PhraseHeader(self.window)
         self.body = VerticalScrolledFrame(self.window)
-        self.footer = PhraseFooter(self.window, self.body.interior)
+        self.footer = PhraseFooter(self.window, self.body.interior, self.close)
         self.header.pack(side="top", fill="both")  # , expand=True)
         self.body.pack(side="top", fill="both", expand=True)
         self.footer.pack(side="top", fill="both")  # , expand=True)
+
+    def close(self):
+        self.window.destroy()
 
 
 class PhraseBody(tk.Frame):
@@ -219,6 +254,13 @@ class PhraseBody(tk.Frame):
         self.columns = 2
         self.refresh_entries()
 
+    def refresh_phrases(self):
+        global PHRASES
+        temp = []
+        for i, (phraseE, categoryE) in enumerate(self.entries):
+            temp.append((phraseE.get(), categoryE.get()))
+        PHRASES = np.array(temp)
+
     def refresh_entries(self):
         for i in range(len(self.entries)):
             for button_frame in self.buttons:
@@ -226,60 +268,68 @@ class PhraseBody(tk.Frame):
             self.buttons = []
             self.entries = []
         if len(PHRASES) > 0:
-            for phrase in PHRASES:
-                self.add_row(phrase)
+            for phrase, category in PHRASES:
+                self.add_row(phrase, category)
         else:
-            self.add_row("")
+            self.add_row("", "")
 
     def delete_row(self, i):
         if len(self.entries) > 1:
-            for phraseE in self.entries:
+            for (phraseE, categoryE) in self.entries:
+                categoryE.grid_forget()
                 phraseE.grid_forget()
             for button_frame in self.buttons:
                 button_frame.grid_forget()
             self.buttons = []
             del self.entries[i - 1]
-            for i, phraseE in enumerate(self.entries):
+            for i, (phraseE, categoryE) in enumerate(self.entries):
                 button_frame = self.button_frame(i + 1)
                 self.buttons.append(button_frame)
                 phraseE.grid(row=i, column=0, stick="nsew")
-                button_frame.grid(row=i, column=1, stick="nsew")
+                categoryE.grid(row=i, column=1, stick="nsew")
+                button_frame.grid(row=i, column=2, stick="nsew")
 
     def button_frame(self, i):
         button_frame = tk.Frame(self)
         delete = tk.Button(button_frame, text=" - ", command=lambda: self.delete_row(i))
-        add = tk.Button(button_frame, text=" + ", command=lambda: self.add_row(i))
+        add = tk.Button(button_frame, text=" + ", command=lambda: self.add_row("", ""))
         delete.pack(side="left")
         add.pack(side="left")
         return button_frame
 
-    def add_row(self, phrase):
+    def add_row(self, phrase, category):
         phraseE = tk.Entry(self, validate="key")
         phraseE.insert(0, phrase)
-        self.entries.append(phraseE)
+        categoryE = tk.Entry(self, validate="key")
+        categoryE.insert(0, category)
+        self.entries.append((phraseE, categoryE))
         for button_frame in self.buttons:
             button_frame.grid_forget()
         self.buttons = []
-        for i, phraseE in enumerate(self.entries):
+        for i, (phraseE, categoryE) in enumerate(self.entries):
             button_frame = self.button_frame(i + 1)
             self.buttons.append(button_frame)
             phraseE.grid(row=i, column=0, stick="nsew")
-            button_frame.grid(row=i, column=1, stick="nsew")
+            categoryE.grid(row=i, column=1, stick="nsew")
+            button_frame.grid(row=i, column=2, stick="nsew")
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=3)
+        self.grid_columnconfigure(2, weight=3)
 
 
 class RootWindow:
     def __init__(self):
         self.root = tk.Tk()
-        self.frame = tk.Frame(self.root, width=30, height=90)
+        self.root.title("Raa Lykkehjulet")
+        self.frame = tk.Frame(self.root, width=30, height=0)
         self.frame.pack()
         self.frame.focus_set()
         self.frame.bind("<KeyPress>", self.keydown)
         self.frame.bind("<KeyRelease>", self.keyup)
 
-        self.phrase = random.choice(PHRASES)
-        self.hidden_phrase = "HOLD SPACE FOR AT VISE LØSNING"
+        self.phrase, self.category = random.choice(PHRASES)
         self.phrase_var = tk.StringVar()
-        self.phrase_var.set(self.hidden_phrase)
+        self.phrase_var.set(self.category)
         self.solved_phrase_btn = tk.Button(self.root, textvariable=self.phrase_var, height=1, width=30)
         self.solved_phrase_btn.config(state=tk.DISABLED)
 
@@ -291,19 +341,20 @@ class RootWindow:
                              text="Åben spilvindue",
                              command=self.generate_new_phrase, height=1, width=30)
         self.game_window_btn.pack()
-        self.solved_phrase_btn.pack()
         self.phrase_table_btn.pack()
+        self.solved_phrase_btn.pack()
 
     def open_phrase_table(self):
         if self.phrase_table_window.window is None or not self.phrase_table_window.window.winfo_exists():
             self.phrase_table_window.display()
 
     def generate_new_phrase(self):
-        self.phrase = random.choice(PHRASES)
+        self.phrase, self.category = random.choice(PHRASES)
         if self.gameWindow.window is None or not self.gameWindow.window.winfo_exists():
             self.gameWindow.display()
         else:
             self.gameWindow.set_phrase(self.phrase)
+            self.phrase_var.set(self.category)
 
     def mainloop(self):
         self.root.mainloop()
@@ -316,7 +367,7 @@ class RootWindow:
         self.phrase_var.set(self.phrase)
 
     def hide_phrase(self):
-        self.phrase_var.set(self.hidden_phrase)
+        self.phrase_var.set(self.category)
 
     def keyup(self, e):
         if e.keysym == 'space':
@@ -328,10 +379,10 @@ class RootWindow:
 SAVE_PATH = os.path.join(userpaths.get_my_documents(), 'Lykkehjulet')
 LEGAL_CHARACTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
                     'U', 'V', 'W', 'X', 'Y', 'Z', 'Æ', 'Ø', 'Å']
-PHRASES = np.array(['BAMSE ELSKER SODAVANDEN'])
+PHRASES = np.array([('BAMSE ER FRA JYLLAND', "RANDOM")])
+load_db()
 
 root = RootWindow()
-
 cbi = Image.open(resource_path("closed-box.jpg"))
 cbi_resized = cbi.resize((int(math.floor(1920 / 12)), int(math.floor((cbi.height / cbi.width) * 1920 / 12))))
 CLOSED_BOX = ImageTk.PhotoImage(cbi_resized)
@@ -342,4 +393,7 @@ OPEN_BOX = ImageTk.PhotoImage(obi_resized)
 
 LEFT_OVER_TOP_BOT_MARGIN = 1015 - (int(math.floor(1015 / CLOSED_BOX.height())) * CLOSED_BOX.height())
 
+cc = Image.open(resource_path("confetti-cannon.gif"))
+cc_resized = cc.resize((1920, int(math.floor((obi.height / obi.width) * 1920))))
+CONFETTI_CANNON = ImageTk.PhotoImage(cc_resized)
 root.mainloop()

@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+tk = "*"
+np = "*"
+pillow = "*"
+pydub = "*"
+numpy = "*"
+userpaths = "*"
+pyinstaller = "*"
+simpleaudio = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
