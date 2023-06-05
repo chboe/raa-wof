@@ -386,9 +386,8 @@ class RootWindow:
         self.phrase, self.category = random.choice(PHRASES)
         if self.gameWindow.window is None or not self.gameWindow.window.winfo_exists():
             self.gameWindow.display()
-        else:
-            self.gameWindow.set_phrase(self.phrase)
-            self.phrase_var.set(self.category)
+        self.phrase_var.set(self.category)
+        self.gameWindow.set_phrase(self.phrase)
 
     def mainloop(self):
         self.root.mainloop()
