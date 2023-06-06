@@ -9,6 +9,15 @@ import math
 import playsound
 
 
+def sample_phrases():
+    phrase, category = PHRASES[PHRASES_INDEX[0]]
+    PHRASES_INDEX[0] = PHRASES_INDEX[0] + 1
+    if PHRASES_INDEX[0] >= len(PHRASES):
+        PHRASES_INDEX[0] = 0
+    save_db()
+    return phrase, category
+
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -20,17 +29,22 @@ def resource_path(relative_path):
 
 def load_db():
     global PHRASES
+    global PHRASES_INDEX
     if os.path.exists(os.path.join(SAVE_PATH, 'PHRASES.npy')):
         PHRASES = np.load(os.path.join(SAVE_PATH, 'PHRASES.npy'))
+    if os.path.exists(os.path.join(SAVE_PATH, 'PHRASES_INDEX.npy')):
+        PHRASES_INDEX = np.load(os.path.join(SAVE_PATH, 'PHRASES_INDEX.npy'))
     PHRASES = np.char.upper(PHRASES)
 
 
 def save_db():
     global PHRASES
+    global PHRASES_INDEX
     if not os.path.isdir(SAVE_PATH):
         os.makedirs(SAVE_PATH)
     PHRASES = np.char.upper(PHRASES)
     np.save(os.path.join(SAVE_PATH, 'PHRASES.npy'), PHRASES)
+    np.save(os.path.join(SAVE_PATH, 'PHRASES_INDEX.npy'), PHRASES_INDEX)
 
 
 class GameWindow():
@@ -128,7 +142,8 @@ class GameWindow():
 
     def keyup(self, e):
         pred_char = e.char.upper()
-        if pred_char in LEGAL_CHARACTERS and (pred_char not in self.phrase_characters or pred_char in self.guessed_characters):
+        if pred_char in LEGAL_CHARACTERS and (
+                pred_char not in self.phrase_characters or pred_char in self.guessed_characters):
             playsound.playsound(resource_path("lost-turn.mp3"), False)
 
         if pred_char in LEGAL_CHARACTERS and pred_char in self.phrase and pred_char not in self.guessed_characters:
@@ -204,7 +219,7 @@ class VerticalScrolledFrame(tk.Frame):
 class PhraseHeader(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        names = ["Sætning","Kategori", ""]
+        names = ["Sætning", "Kategori", ""]
         frame = tk.Frame(self)
         frame.pack(side="top", fill="both", expand=True)
         for i, title in enumerate(names):
@@ -320,16 +335,17 @@ class PhraseBody(tk.Frame):
         self.grid_columnconfigure(1, weight=3)
         self.grid_columnconfigure(2, weight=3)
 
+
 class SoundBoard(tk.Frame):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.intro_btn = tk.Button(self, text="Intro", height=1, width=9,
-                                          command=self.play_intro)
+                                   command=self.play_intro)
         self.failure_btn = tk.Button(self, text="Fallit", height=1, width=9,
-                                          command=self.play_failure)
+                                     command=self.play_failure)
         self.lost_turn_btn = tk.Button(self, text="Tabt tur", height=1, width=9,
-                                          command=self.play_lost_turn)
+                                       command=self.play_lost_turn)
 
         self.intro_btn.grid(column=0, row=0)
         self.failure_btn.grid(column=1, row=0)
@@ -337,7 +353,6 @@ class SoundBoard(tk.Frame):
         self.grid_columnconfigure(weight=1, index=0)
         self.grid_columnconfigure(weight=1, index=1)
         self.grid_columnconfigure(weight=1, index=2)
-
 
     def play_intro(self):
         playsound.playsound(resource_path("intro.mp3"), False)
@@ -347,6 +362,7 @@ class SoundBoard(tk.Frame):
 
     def play_lost_turn(self):
         playsound.playsound(resource_path("wrong.mp3"), False)
+
 
 class RootWindow:
     def __init__(self):
@@ -360,19 +376,20 @@ class RootWindow:
 
         self.sound_board = SoundBoard(self.frame)
 
-        self.phrase, self.category = random.choice(PHRASES)
+        self.phrase, self.category = sample_phrases()
         self.phrase_var = tk.StringVar()
         self.phrase_var.set(self.category)
         self.solved_phrase_btn = tk.Button(self.root, textvariable=self.phrase_var, height=1, width=30)
         self.solved_phrase_btn.config(state=tk.DISABLED)
 
         self.phrase_table_window = PhraseUI(self.root)
-        self.phrase_table_btn = tk.Button(self.root, text="Åben sætningstabel", height=1, width=30, command=self.open_phrase_table)
+        self.phrase_table_btn = tk.Button(self.root, text="Åben sætningstabel", height=1, width=30,
+                                          command=self.open_phrase_table)
 
         self.gameWindow = GameWindow(self.root, self.phrase, self.display_phrase, self.hide_phrase)
         self.game_window_btn = tk.Button(self.root,
-                             text="Åben spilvindue",
-                             command=self.generate_new_phrase, height=1, width=30)
+                                         text="Åben spilvindue",
+                                         command=self.generate_new_phrase, height=1, width=30)
         self.sound_board.pack()
         self.game_window_btn.pack()
         self.phrase_table_btn.pack()
@@ -383,7 +400,8 @@ class RootWindow:
             self.phrase_table_window.display()
 
     def generate_new_phrase(self):
-        self.phrase, self.category = random.choice(PHRASES)
+        self.phrase, self.category = sample_phrases()
+
         if self.gameWindow.window is None or not self.gameWindow.window.winfo_exists():
             self.gameWindow.display()
         self.phrase_var.set(self.category)
@@ -413,7 +431,9 @@ SAVE_PATH = os.path.join(userpaths.get_my_documents(), 'Lykkehjulet')
 LEGAL_CHARACTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
                     'U', 'V', 'W', 'X', 'Y', 'Z', 'Æ', 'Ø', 'Å']
 PHRASES = np.array([('BAMSE ER FRA JYLLAND', "RANDOM")])
+PHRASES_INDEX = np.array([0])
 load_db()
+PHRASES_INDEX[0] = PHRASES_INDEX[0]-1
 
 root = RootWindow()
 cbi = Image.open(resource_path("closed-box.jpg"))
