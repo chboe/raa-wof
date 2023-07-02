@@ -92,12 +92,13 @@ class GameWindow():
 
     def add_phrase(self):
         lines = self.distribute_to_lines()
+        row_start_index = 2 - math.floor((len(lines) / 2))
         for row, line in enumerate(lines):
             start_index, string = line
             for i, char in enumerate([*string]):
                 if char != ' ':
                     self.canvas.create_image((i + start_index) * (int(math.floor(1920 / 12))),
-                                             LEFT_OVER_TOP_BOT_MARGIN / 2 + (row + 1) * OPEN_BOX.height(),
+                                             LEFT_OVER_TOP_BOT_MARGIN / 2 + (row+row_start_index) * OPEN_BOX.height(),
                                              image=OPEN_BOX,
                                              anchor='nw')
 
@@ -108,13 +109,14 @@ class GameWindow():
 
     def add_char_box(self, pred_char):
         lines = self.distribute_to_lines()
+        row_start_index = 2 - math.floor((len(lines) / 2))
         for row, line in enumerate(lines):
             start_index, string = line
             for i, char in enumerate([*string]):
                 if char == pred_char:
                     self.canvas.create_text(
                         (i + start_index) * (int(math.floor(1920 / 12))) + math.floor(0.5 * OPEN_BOX.width()),
-                        LEFT_OVER_TOP_BOT_MARGIN / 2 + (row + 1) * OPEN_BOX.height() + math.floor(
+                        LEFT_OVER_TOP_BOT_MARGIN / 2 + (row+row_start_index) * OPEN_BOX.height() + math.floor(
                             0.5 * OPEN_BOX.height() - 10), text=char,
                         fill="black", font='Kiona 120')
 
